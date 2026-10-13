@@ -1,15 +1,24 @@
 
-#Read the CSV file, print it, build the request without sending it [Version 3]
+#Read the CSV file, print it, build the request and send it [Version 4]
 import csv  
 import os  
 import random  
+import urllib.request
 import urllib.parse
+from pathlib import Path
 
 #ThingSpeak Section
 UPDATE_URL = "https://api.thingspeak.com/update"  #ThingSpeak API URL for updating channel data
 WRITE_KEY = os.environ.get("THINGSPEAK_WRITE_KEY")  #Get the ThingSpeak Write API Key from the environment variable "THINGSPEAK_WRITE_KEY"
 
-with open("nodes.csv", newline="", encoding="utf-8-sig") as f:  #opens/closes the CSV file when block ends (newline = "" to avoid blank lines, encoding = "utf-8-sig" to avoid BOM issues)  
+if not WRITE_KEY:
+    print("No Write key found. Set it with:")
+    print('  $env:THINGSPEAK_WRITE_KEY = "YOUR_KEY"')
+    raise SystemExit(1)
+
+nodes_file = Path(__file__).resolve().with_name("nodes.csv")    #Finds the path to the "nodes.csv" file in the same directory as this script, regardless of the current working directory
+
+with nodes_file.open(newline="", encoding="utf-8-sig") as f:  #opens/closes the CSV file when block ends (newline = "" to avoid blank lines, encoding = "utf-8-sig" to avoid BOM issues)  
     reader = csv.DictReader(f) #csv.DictReader uses the header row to create a dictionary for each subsequent row, with the header values as keys and the row values as values
     for row in reader:  #Repeats indented code once per row
         if row["enabled"].strip().lower() != "yes":  #Checks if the "enabled" column value is "yes" (case insensitive, with whitespace stripped)
@@ -38,4 +47,16 @@ with open("nodes.csv", newline="", encoding="utf-8-sig") as f:  #opens/closes th
         }
 
         url = UPDATE_URL + "?" + urllib.parse.urlencode(params)  #Builds the full URL for the request by appending the encoded parameters to the base URL
-        print("Would send:", url.replace(str(WRITE_KEY), "HIDDEN"))    #Prints the URL with the API key hidden for testing purposes   
+        
+        print("Sending node", row["node_id"], "->", temperature, "C,", humidity, "%")
+        try:
+            with urllib.request.urlopen(url, timeout=15) as response:
+                answer = response.read().decode().strip()
+        except Exception as error:
+            print("  Network problem:", error)
+            continue
+
+        if answer == "0":
+            print("  Rejected: wrong key, or less than 15 s since the last write")
+        else:
+            print("  Stored as entry", answer)
