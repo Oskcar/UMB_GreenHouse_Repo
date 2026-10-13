@@ -1,20 +1,22 @@
 import csv
 import os
 import random
+import sys
+from pathlib import Path
 import urllib.parse
 import urllib.request
 
 UPDATE_URL = "https://api.thingspeak.com/update"
-WRITE_KEY = os.environ.get("THINGSPEAK_WRITE_KEY")  # Replaced with Location Test Channel ThingSpeak Write API Key
 
-#Eventually higher security will be needed, but for now, this is a simple test script to send data to ThingSpeak
+if sys.prefix == sys.base_prefix:
+    raise SystemExit("Refusing to send: activate a Python virtual environment first.")
 
-#if not WRITE_KEY:
-    #print("No Write key found. Set it with:")
-    #print('  $env:THINGSPEAK_WRITE_KEY = "YOUR_KEY"')
-    #raise SystemExit(1)
+WRITE_KEY = os.environ.get("THINGSPEAK_WRITE_KEY")
+if not WRITE_KEY:
+    raise SystemExit("No ThingSpeak write key found. Set THINGSPEAK_WRITE_KEY in this PowerShell session.")
 
-with open("nodes1.csv", newline="", encoding="utf-8-sig") as f:
+csv_path = Path(__file__).with_name("nodes.csv")
+with csv_path.open(newline="", encoding="utf-8-sig") as f:
     reader = csv.DictReader(f)
     for row in reader:
         if row["enabled"].strip().lower() != "yes":
@@ -40,14 +42,14 @@ with open("nodes1.csv", newline="", encoding="utf-8-sig") as f:
             "elevation": row["elevation_m"],
         }
 
-        url = UPDATE_URL + "?" + urllib.parse.urlencode(params)
-      #  print("Would send:", url.replace(str(WRITE_KEY), "HIDDEN"))    #Here we can test the URL without sending it
-
-      #  # Send the request to ThingSpeak
-      #  try:
+        request = urllib.request.Request(
+            UPDATE_URL,
+            data=urllib.parse.urlencode(params).encode("utf-8"),
+            method="POST",
+        )
         print("Sending node", row["node_id"], "->", temperature, "C,", humidity, "%")
         try:
-            with urllib.request.urlopen(url, timeout=15) as response:
+            with urllib.request.urlopen(request, timeout=15) as response:
                 answer = response.read().decode().strip()
         except Exception as error:
             print("  Network problem:", error)
