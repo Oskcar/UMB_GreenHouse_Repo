@@ -5,6 +5,7 @@ import os
 import random  
 import urllib.request
 import urllib.parse
+import time
 from pathlib import Path
 
 #ThingSpeak Section
@@ -20,6 +21,8 @@ nodes_file = Path(__file__).resolve().with_name("nodes.csv")    #Finds the path 
 
 with nodes_file.open(newline="", encoding="utf-8-sig") as f:  #opens/closes the CSV file when block ends (newline = "" to avoid blank lines, encoding = "utf-8-sig" to avoid BOM issues)  
     reader = csv.DictReader(f) #csv.DictReader uses the header row to create a dictionary for each subsequent row, with the header values as keys and the row values as values
+    first_send = True  #Flag to indicate if this is the first time sending data
+    
     for row in reader:  #Repeats indented code once per row
         if row["enabled"].strip().lower() != "yes":  #Checks if the "enabled" column value is "yes" (case insensitive, with whitespace stripped)
             continue  #Skips the rest of the loop and goes to the next row if "enabled" is "yes"  
@@ -30,6 +33,11 @@ with nodes_file.open(newline="", encoding="utf-8-sig") as f:  #opens/closes the 
         if not (-90 <= lat <= 90 and -180 <= lon <= 180):  #Checks if the latitude and longitude values are within valid ranges
             print(f"Invalid coordinates for node {row['node_id']}: lat={lat}, lon={lon}")  #Prints an error message if the coordinates are invalid
             continue
+
+        if not first_send:  #If this is not the first time sending data, print a message indicating that the node is disabled
+            print("Waiting 16s (free-tier limit) before sending next node...")
+            time.sleep(16)  #Waits for 16 seconds to comply with ThingSpeak's free-tier limit of one update every 15 seconds
+        first_send = False
 
 # Fake sensor readings, until a real sensor exists
 
