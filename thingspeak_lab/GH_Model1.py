@@ -1,5 +1,5 @@
 
-#Read the CSV file, print it, build the request and send it [Version 4]
+#Read the CSV file, print it, build the request and send it [Version 4] GreenHouse Model 1 (Batches of 1 node at a time, with 16s delay between nodes to comply with ThingSpeak free-tier limit)
 import csv  
 import os  
 import random  
